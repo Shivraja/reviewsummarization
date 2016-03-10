@@ -5,6 +5,7 @@
  */
 package jsoup.parser;
 
+import org.json.simple.JSONObject;
 import com.jaunt.ResponseException;
 import java.io.IOException;
 import org.jsoup.Jsoup;
@@ -13,11 +14,13 @@ import org.jsoup.nodes.Element;
 import org.jsoup.nodes.Node;
 import org.jsoup.select.Elements;
 import com.jaunt.UserAgent;
+import com.sun.org.apache.xalan.internal.xsltc.runtime.BasisLibrary;
 import java.io.File;
 import java.io.FileWriter;
 import java.util.Scanner;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.json.simple.JSONArray;
 
 /**
  *
@@ -37,111 +40,74 @@ public class JsoupParser {
     static String productName;
     static Scanner scanner;
 
+    static JSONObject obj = new JSONObject();
+
     /**
      * @param args the command line arguments
      */
-    public static void main(String[] args) throws IOException, ResponseException {
+    public static void main(String[] args) throws IOException, ResponseException, Exception {
         // TODO code application logic here
         System.out.println("Jsoup Started");
-        scanner = new Scanner(System.in);
-        //productName = scanner.nextLine();
-            
-        productName = "redmi";
+        //scanner = new Scanner(System.in);
+
+        productName = "redmi";//scanner.nextLine();
         parseAmazon(productName);
         parseFlipkart(productName);
 
-        /* // String url = "http://www.gsmarena.com/motorola_moto_g_(3rd_gen)-reviews-7247.php";
-         // String url ="http://www.flipkart.com/moto-g-3rd-generation/product-reviews/ITME9YSJR7MFRY3N";
-         String url = "http://www.flipkart.com/redmi-1s/product-reviews/ITMDZ6ZPUATKGFJP";
-         //   String url = "http://www.amazon.com/Samsung-UN105S9-Curved-105-Inch-Ultra/product-reviews/B00L403O8U";
-         Document doc = Jsoup.connect(url).get();
-         // Elements headLines = doc.select("#mp-itn b a");
-         System.out.println(doc.text());
-         //System.out.println(doc.getElementById("cm_cr-review_list"));
-         //  Element review = doc.getElementById("cm_cr-review_list");
-         Elements review = doc.getElementsByClass("review-text");
-         System.out.println(review.text());
-         for (Node e : review.first().childNodes()) {
-         //System.out.println("Child : "+e.childNodeSize());
-         if (e.childNodeSize() > 0) {    
-         for (Node c : e.childNodes()) {
-  
-         // System.out.println(c.toString());
-         // System.out.println("********************");
-         }
-         } else {
-         System.out.println(e.toString());
-         System.out.println("********************");
-         }
-         }
-         */
-        //System.out.println(review.text());
+        //System.out.println(obj.toString());
         writeLinksToFile();
+        writeJSONToFile();
     }
 
-    public static void parseFlipkart(String productName) throws ResponseException {
+    public static void parseFlipkart(String productName) throws Exception {
         getFlipkartLinks(productName);
-        System.out.println(FlipkartLinks.length);
+
+        //System.out.println(FlipkartLinks.length);
+        File link_file = new File("flipkart_reviews.txt");
+        link_file.createNewFile();
+        FileWriter writer = new FileWriter(link_file);
         for (String link : FlipkartLinks) {
             if (link == null) {
                 continue;
             }
             System.out.println("Parsing Started for link : " + link);
-            parseFlipkartLink(link);
+            parseFlipkartLink(link, writer);
+            break;//Just to pass a single url as of now
         }
+        writer.flush();
+        writer.close();
     }
 
-    public static void parseAmazon(String productName) {
+    public static void parseAmazon(String productName) throws IOException {
         getAmazonLinks(productName);
-        System.out.println(AmazonLinks.length);
+        //System.out.println(AmazonLinks.length);
+        File link_file = new File("amazon_reviews.txt");
+        link_file.createNewFile();
+        FileWriter writer = new FileWriter(link_file);
         for (String link : AmazonLinks) {
             if (link == null) {
                 continue;
             }
             System.out.println("Parsing Started for link : " + link);
-            parseAmazonLink(link);
+            parseAmazonLink(link, writer);
+            break;//Just to pass a single url as of now
         }
-
-    }
-
-    public static void parseFlipkartLink(String url) {
-        try {
-            Document doc = Jsoup.connect(url).get();
-            Elements reviews = doc.getElementsByClass("review-text");
-            for (Element review : reviews) {
-                System.out.println("**********");
-                System.out.println(review.text());  
-            }
-        } catch (IOException ex) {
-            Logger.getLogger(JsoupParser.class.getName()).log(Level.SEVERE, null, ex);
-        }
-    }
-
-    public static void parseAmazonLink(String url) {
-        try {
-            Document doc = Jsoup.connect(url).get();
-            Element review = doc.getElementById("cm_cr-review_list");
-         //   reviews = doc.getElementsByTag("<span class=\"a-size-base review-text\">");
-            System.out.println(review.text());
-            Elements reviews = review.getAllElements();
-            for (Element e : reviews) {
-                System.out.println("**********");
-                System.out.println(e.text());  
-            }
-        } catch (IOException ex) {
-            Logger.getLogger(JsoupParser.class.getName()).log(Level.SEVERE, null, ex);
-        }
+        writer.flush();
+        writer.close();
     }
 
     public static void getFlipkartLinks(String product_name) throws ResponseException {
         //Code for Flipkart
         try {
+
             userAgent.visit("http://google.com");          //visit google
             userAgent.doc.apply(product_name + " reviews flipkart");            //apply form input (starting at first editable field)
             userAgent.doc.submit("Google Search");         //click submit button labelled "Google Search"
             String LinkArray[] = new String[1000];
             int linkcount = 0;
+
             com.jaunt.Elements links = userAgent.doc.findEvery("<h3 class=r>").findEvery("<a>");  //find search result links
+            //System.out.println("Inside getFlipkartLinks function");
             for (com.jaunt.Element link : links) {
                 String s = link.getAt("href");
                 if (s.contains("www.flipkart.com")) {
@@ -158,16 +124,17 @@ public class JsoupParser {
                 }
             }
             no_of_flipkart_links = finalcount;
-            System.out.println("Flipkart Link Count : " + no_of_flipkart_links);
+            //System.out.println("Flipkart Link Count : " + no_of_flipkart_links);
         } catch (Exception e) {
-            System.out.println("Exception inside flipkart function");
+            System.out.println("Exception inside getFlipkartlinks function");
         }
     }
 
     public static void getAmazonLinks(String product_name) {
-            //Code for Amazon
+        //Code for Amazon
 
         try {
+            //System.out.println("Inside getAmazonLinks function");
             userAgent = new UserAgent();         //create new userAgent (headless browser)
             userAgent.visit("http://google.com");          //visit google
             userAgent.doc.apply(product_name + " reviews amazon");            //apply form input (starting at first editable field)
@@ -177,7 +144,7 @@ public class JsoupParser {
             com.jaunt.Elements links = userAgent.doc.findEvery("<h3 class=r>").findEvery("<a>");  //find search result links
             for (com.jaunt.Element link : links) {
                 String s = link.getAt("href");
-                System.out.println(s);
+                //System.out.println(s);
                 if (s.contains("www.amazon")) {
                     String temp1[] = s.split("&");
                     String temp2[] = temp1[0].split("=");
@@ -193,20 +160,167 @@ public class JsoupParser {
             }
             no_of_amazon_links = amazon_count;
         } catch (Exception e) {
-            System.out.println("Exception inside Amazon function");
+            System.out.println("Exception inside getAmazonlinks function");
         }
 
         System.out.println("Amazon Link Count : " + no_of_amazon_links);
     }
 
-    public static void writeLinksToFile() throws IOException {
+    public static void parseFlipkartLink(String url, FileWriter writer) {
+        try {
+            Document doc = Jsoup.connect(url).get();
+            Elements reviews = doc.getElementsByClass("review-list");
 
+            for (Element e : reviews.select("div.fclear.fk-review.fk-position-relative.line")) {
+                writer.write("\nReview no:" + (count++) + "\n");
+                writer.write(e.text() + "\n");
+
+                Elements titles = e.select("div.line.fk-font-normal.bmargin5.dark-gray");
+                Elements body = e.select("span.review-text");
+                Elements votes = e.select("div.line.fk-font-small.review-status-bar");
+                String vote = votes.get(0).select("div.unit").get(0).text();
+                float percentage;
+                if (vote.contains("%")) {
+                    percentage = getFlipkartPercentage(votes.get(0).select("div.unit").get(0).text());
+                } else {
+                    int value1;
+                    int value2;
+                    value1 = getLikedValue(vote);
+                    value2 = getTotalValue(vote);
+                    percentage = ((float) value1 / (float) value2) * 100;
+                }
+                System.out.println("Vote Text :" + votes.get(0).select("div.unit").get(0).text());
+
+                String reviewText = "";
+                for (Element rev : body) {
+                    reviewText += rev.text();
+                }
+                JSONObject object = new JSONObject();
+                object.put("Title", titles.get(0).text());
+                object.put("Body", reviewText);
+                object.put("Score", percentage);
+                obj.put("review" + count, object);
+
+              
+               // System.out.println("Title : " + titles.get(0).text());
+               // System.out.println("Body : " + reviewText);
+                //System.out.println("Score : " + percentage);
+                //System.out.println("E Ended &&&&&&&&&&&&&&&&&&&");
+            }
+        } catch (IOException ex) {
+            Logger.getLogger(JsoupParser.class.getName()).log(Level.SEVERE, null, ex);
+        }
+    }
+
+    public static void parseAmazonLink(String url, FileWriter writer) {
+        try {
+            Document doc = Jsoup.connect(url).get();
+            Element review = doc.getElementById("cm_cr-review_list");
+            //System.out.println(review);
+            //System.out.println("Review Ended ************************");
+            Elements reviews = review.select("div.a-section.review");
+            //System.out.println(reviews);
+            //System.out.println("Reviews Ended ++++++++++++++++++++++++");
+            for (Element e : reviews) {
+                //System.out.println(e);
+                writer.write("\nReview no:" + (count++) + "\n");
+                writer.write(e.text() + "\n");
+
+                Elements titles = e.select("a.a-size-base.a-link-normal.review-title.a-color-base.a-text-bold");
+                Elements body = e.select("span.a-size-base.review-text");
+                Elements vote = e.select("span.a-size-small.a-color-secondary.review-votes");
+                int value1 = 0, value2 = 0;
+                String reviewText = "";
+                for (Element rev : body) {
+                    reviewText += rev.text();
+                }
+                System.out.println("Vote " + vote.get(0).text());
+                value1 = getLikedValue(vote.get(0).text());
+                value2 = getTotalValue(vote.get(0).text());
+                JSONObject object = new JSONObject();
+                object.put("Title", titles.get(0).text());
+                object.put("Body", reviewText);
+                object.put("Score", ((float) value1 / (float) value2) * 100);
+                obj.put("review" + count, object);
+                //System.out.println("Title : " + titles.get(0).text());
+                //System.out.println("Body : " + reviewText);
+                //System.out.println("Score : " + ((float) value1 / (float) value2)*100);
+                //System.out.println("E Ended &&&&&&&&&&&&&&&&&&&");
+            }
+        } catch (IOException ex) {
+            Logger.getLogger(JsoupParser.class.getName()).log(Level.SEVERE, null, ex);
+        }
+    }
+
+    public static int getFlipkartPercentage(String s) {
+        int i = 0;
+        if (s == null || s.length() == 0) {
+            return 50;
+        }
+        String t = "";
+        while (i < s.length() && s.charAt(i) != '%') {
+            t += s.charAt(i) + "";
+            i++;
+        }
+        return Integer.parseInt(t);
+    }
+
+    public static int getLikedValue(String s) {
+
+        if (s == null || s.length() == 0) {
+            return 1;
+        }
+        int i = 0;
+        String t = "";
+        while (s.charAt(i) != ' ') {
+            if (s.charAt(i) == ',') {
+                i++;
+                continue;
+            }
+            t += s.charAt(i) + "";
+            i++;
+        }
+        return Integer.parseInt(t);
+    }
+
+    public static int getTotalValue(String s) {
+
+        if (s == null || s.length() == 0) {
+            return 2;
+        }
+        int i = s.indexOf("of");
+        //System.out.println("Index "+ i);
+        i += 3;
+        String t = "";
+        while (s.charAt(i) != ' ') {
+            // System.out.println(s.charAt(i));
+            if (s.charAt(i) == ',') {
+                i++;
+                continue;
+            }
+            t += s.charAt(i) + "";
+            i++;
+        }
+        return Integer.parseInt(t);
+    }
+
+    public static void writeJSONToFile() throws IOException {
+
+        File link_file = new File("JSON.txt");
+        link_file.createNewFile();
+        FileWriter writer = new FileWriter(link_file);
+        writer.write(obj.toString());
+        writer.flush();
+        writer.close();
+    }
+
+    public static void writeLinksToFile() throws IOException {
         File link_file = new File("links.txt");
         link_file.createNewFile();
         FileWriter writer = new FileWriter(link_file);
 
         for (int i = 0; i < finalcount; i++) {
-            //System.out.println(FinalLinks[i]);
+            System.out.println(FinalLinks[i]);
             writer.write("\n" + FinalLinks[i]);
         }
         writer.flush();
